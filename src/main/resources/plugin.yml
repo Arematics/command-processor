@@ -1,0 +1,11 @@
+name: McCoreCommand
+author: Klysma
+description: McCore by Arematics
+version: 1.0.0
+
+main: com.arematics.minecraft.core.Bootstrap
+
+commands:
+  sound:
+    description: Show valid sounds
+    usage: /<command>
