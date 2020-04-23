@@ -18,3 +18,5 @@ The register new Parser create class with Abstract Class CommandParameterParser 
 
 In the **SoundCommand** example, the @Default Annotation is called when you use only /sound. All other @Sub Annotations are used for Sub Commands. See all Sub Commands with
 /sound
+
+If you want to have some command like /broadcast <Message> use {message} at the end of the @Sub Value. Then the processor parse all Command Arguments starting at this length as part of the String. See example at **SoundCommand** @Sub("list add {message}")
