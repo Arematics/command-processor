@@ -9,6 +9,8 @@ import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Date;
+
 @CMD
 public class SoundCommand extends CoreCommand {
 
@@ -35,13 +37,19 @@ public class SoundCommand extends CoreCommand {
 
     @Sub("list {startsWith}")
     public boolean listSelected(CommandSender sender, String startsWith){
-        sender.sendMessage("Sounds: " + ListUtils.getNameListStartsWith(Sound.class, startsWith));
+        sender.sendMessage(ListUtils.getNameListStartsWith(Sound.class, startsWith));
         return true;
     }
 
-    @Sub("list end {endsWith}")
-    public boolean listSelected(CommandSender sender, Integer value){
-        sender.sendMessage("Wert ist: " + value);
+    @Sub("list date {date}")
+    public boolean executeDate(CommandSender sender, Date date){
+        sender.sendMessage(date.toString());
+        return true;
+    }
+
+    @Sub("list add {message}")
+    public boolean addSelected(CommandSender sender, String message){
+        sender.sendMessage(message);
         return true;
     }
 

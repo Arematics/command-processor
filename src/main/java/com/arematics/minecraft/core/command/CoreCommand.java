@@ -1,6 +1,9 @@
 package com.arematics.minecraft.core.command;
 
+import com.arematics.minecraft.core.command.parser.Parser;
+import com.arematics.minecraft.core.command.parser.ParserException;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.reflect.MethodUtils;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -8,6 +11,7 @@ import org.bukkit.command.CommandSender;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public abstract class CoreCommand implements CommandExecutor {
@@ -49,6 +53,7 @@ public abstract class CoreCommand implements CommandExecutor {
                     }
                     annos.add(value);
                     String[] split = value.contains(" ") ? value.split(" ") : new String[]{value};
+                    args = getSetupMessageArray(split, args);
                     if(split.length == args.length && isMatch(split, args)){
                         Object[] order;
                         try{
@@ -74,16 +79,26 @@ public abstract class CoreCommand implements CommandExecutor {
     }
 
     private boolean isMatch(String[] annotation, String[] src){
-        boolean match = true;
+        boolean match = false;
         for(int i = 0; i < annotation.length; i++){
             String annotationString = annotation[i];
             if(!annotationString.startsWith("{") && !annotationString.endsWith("}")){
-                if(match)
-                    match = annotationString.equals(src[i]);
+                if(!annotationString.equals(src[i])) return false;
+                else match = true;
             }
         }
 
         return match;
+    }
+
+    private String[] getSetupMessageArray(String[] subArgs, String[] input){
+        if(input.length > subArgs.length && subArgs[subArgs.length - 1].equals("{message}")){
+            String message = StringUtils.join(input, " ", subArgs.length - 1, input.length);
+            input = Arrays.copyOf(input, subArgs.length);
+            input[input.length - 1] = message;
+        }
+
+        return input;
     }
 
     private String getSerializedValue(Method method) {
