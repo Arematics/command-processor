@@ -44,6 +44,6 @@ public class MethodProcessorEnvironment {
         for(Map.Entry<Class<? extends Annotation>, AnnotationProcessor<?>> processorEntry : this.processors.entrySet())
             if(method.isAnnotationPresent(processorEntry.getKey()) &&
                     processorEntry.getValue().setEnvironment(this).supply(method)) return true;
-        return true;
+        return false;
     }
 }
