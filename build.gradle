@@ -17,10 +17,6 @@ dependencies {
     //Kernel Plugins for all Modules of Arematics
     compileOnly  name: 'SpigotServer'
 
-    //Lombok
-    compile group: 'org.projectlombok', name: 'lombok', version: '1.18.12'
-    annotationProcessor 'org.projectlombok:lombok:1.18.12'
-
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.1'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.6.1'
 
