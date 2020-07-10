@@ -11,6 +11,7 @@ import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @AnyAccess
@@ -41,7 +42,7 @@ public class SoundCommand extends CoreCommand {
     }
 
     @SubCommand("list date {date}")
-    public boolean executeDate(CommandSender sender, LocalDateTime date){
+    public boolean executeDate(CommandSender sender, LocalDate date){
         sender.sendMessage(date.toString());
         return true;
     }
