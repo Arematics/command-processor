@@ -1,116 +1,111 @@
 package com.arematics.minecraft.core.command;
 
-import com.arematics.minecraft.core.command.parser.Parser;
-import com.arematics.minecraft.core.command.parser.ParserException;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.reflect.MethodUtils;
+import com.arematics.minecraft.core.annotations.*;
+import com.arematics.minecraft.core.annotations.Default;
+import com.arematics.minecraft.core.command.processor.SubCommandAnnotationProcessor;
+import com.arematics.minecraft.core.messaging.Message;
+import com.arematics.minecraft.core.messaging.Messages;
+import com.arematics.minecraft.core.utils.ClassUtils;
+import com.arematics.minecraft.core.processor.methods.AnnotationProcessor;
+import com.arematics.minecraft.core.processor.methods.CommonData;
+import com.arematics.minecraft.core.processor.methods.MethodProcessorEnvironment;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public abstract class CoreCommand implements CommandExecutor {
 
-    private final static String NO_PERMS_KEY = "cmd_noperms";
-    private static final String NOT_VALID_LENGHT = "cmd_not_valid_length";
+    private static final String CMD_NO_PERMS = "cmd_noperms";
+    private static final String CMD_FAILURE = "cmd_failure";
 
-    public abstract String[] getCommandNames();
+    private final String[] commandNames;
+    private final boolean matchAnyAccess;
+    private final List<CommandAccess> accesses = new ArrayList<>();
+    private final Map<Class<? extends Annotation>, AnnotationProcessor<?>> processors = new HashMap<>();
 
-    public abstract boolean matchAnyAccess();
+    public CoreCommand() {
+        this.commandNames = ClassUtils.fetchAnnotationValueSave(this, PluginCommand.class, PluginCommand::names)
+                .orElse(new String[]{});
+        this.matchAnyAccess = ClassUtils.findAnnotation(this, AnyAccess.class).isPresent();
 
-    private final List<CommandAccess> accesses = new ArrayList<CommandAccess>(){{
-       add(new RangAccess());
-    }};
-
-    @Override
-    public boolean onCommand(CommandSender commandSender, Command command, String s, String[] strings) {
-        if(canAccessCommand(commandSender, command))
-            return process(commandSender, command, strings);
-        else
-            commandSender.sendMessage("Warnung");
-        return true;
+        this.registerStandards();
     }
 
-    private boolean process(CommandSender sender, Command command, String[] args){
-        boolean isDefault = args.length == 0;
-        List<String> annos = new ArrayList<>();
-        try{
-            for (final Method method : this.getClass().getDeclaredMethods()){
-                if(isDefault) {
-                    if (method.isAnnotationPresent(Default.class)) {
-                        return (boolean) method.invoke(this, sender);
-                    }
-                }else if(method.isAnnotationPresent(Sub.class)){
-                    String value = getSerializedValue(method);
-                    if(annos.contains(value)){
-                        sender.sendMessage("Methoden mit selben Sub Command vorhanden");
-                        return true;
-                    }
-                    annos.add(value);
-                    String[] split = value.contains(" ") ? value.split(" ") : new String[]{value};
-                    args = getSetupMessageArray(split, args);
-                    if(split.length == args.length && isMatch(split, args)){
-                        Object[] order;
-                        try{
-                            order = Parser.getInstance()
-                                    .fillParameters(sender, split, method.getParameterTypes(), args);
-                        }catch (ParserException e){
-                            sender.sendMessage("Fehler: " + e.getMessage());
-                            return true;
-                        }
+    private void registerStandards(){
+        this.accesses.add(new RangAccess());
+        this.processors.put(SubCommand.class, new SubCommandAnnotationProcessor());
 
-                        if(ArrayUtils.isEmpty(order)){
-                            return (boolean) method.invoke(this, sender);
-                        }
-                        else return (boolean) MethodUtils.invokeMethod(this, method.getName(), order,
-                                method.getParameterTypes());
+        try {
+            for(Annotation annotation : this.getClass().getAnnotations()){
+                if(annotation.annotationType() == PluginCommand.class) {
+                    Class<? extends AnnotationProcessor<?>>[] processors = ((PluginCommand)annotation).processors();
+                    for (Class<? extends AnnotationProcessor<?>> processor : processors) {
+                        AnnotationProcessor<?> instance = processor.newInstance();
+                        this.processors.put(instance.get(), instance);
                     }
                 }
             }
-        }catch (Exception ignore){
-            sender.sendMessage("Fehler im Command, bitte dem Team melden");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Defined Accesses protects the command from being executed by someone isn't allowed to use this command.
+     * This method defines if all Accesses must be allowed for the execute ore only one access.
+     * @return If only one access is enough = return true else return false
+     */
+    public final boolean matchAnyAccess(){
+        return this.matchAnyAccess;
+    }
+
+    public List<CommandAccess> accesses() {
+        return accesses;
+    }
+
+    public String[] getCommandNames(){
+        return this.commandNames;
+    }
+
+    @Override
+    public final boolean onCommand(CommandSender commandSender, Command command, String labels, String[] arguments) {
+        if(canAccessCommand(commandSender, command))
+            return process(commandSender, command, arguments);
+        else
+            Messages.create(CMD_NO_PERMS).WARNING().send(commandSender);
+        return true;
+    }
+
+    private boolean process(CommandSender sender, Command command, String[] arguments){
+        boolean isDefault = arguments.length == 0;
+        List<String> annotations = new ArrayList<>();
+        Map<String, Object> dataPack = new HashMap<>();
+        dataPack.put(CommonData.COMMAND_SENDER.toString(), sender);
+        dataPack.put("annotations", annotations);
+        dataPack.put(CommonData.COMMAND_ARGUEMNTS.toString(), arguments);
+        dataPack.put(CommonData.COMMAND.toString(), command);
+        MethodProcessorEnvironment environment = MethodProcessorEnvironment
+                .newEnvironment(this, dataPack, this.processors);
+        try{
+            for (final Method method : this.getClass().getDeclaredMethods()){
+                if(isDefault && ClassUtils.execute(Default.class, method, (tempMethod)
+                        -> (Boolean) method.invoke(this, sender))) return true;
+                if(environment.supply(method)) return true;
+            }
+        }catch (Exception exception){
+            exception.printStackTrace();
+            Messages.create(CMD_FAILURE).FAILURE().send(sender);
         }
         return true;
     }
 
-    private boolean isMatch(String[] annotation, String[] src){
-        boolean match = false;
-        for(int i = 0; i < annotation.length; i++){
-            String annotationString = annotation[i];
-            if(!annotationString.startsWith("{") && !annotationString.endsWith("}")){
-                if(!annotationString.equals(src[i])) return false;
-                else match = true;
-            }
-        }
-
-        return match;
-    }
-
-    private String[] getSetupMessageArray(String[] subArgs, String[] input){
-        if(input.length > subArgs.length && subArgs[subArgs.length - 1].equals("{message}")){
-            String message = StringUtils.join(input, " ", subArgs.length - 1, input.length);
-            input = Arrays.copyOf(input, subArgs.length);
-            input[input.length - 1] = message;
-        }
-
-        return input;
-    }
-
-    private String getSerializedValue(Method method) {
-        return method.getAnnotation(Sub.class).value();
-    }
-
     public boolean canAccessCommand(CommandSender sender, Command command){
-        if(matchAnyAccess()) return getAccesses().stream().anyMatch(access -> access.hasAccess(sender, command.getName()));
-        else return getAccesses().stream().allMatch(access -> access.hasAccess(sender, command.getName()));
+        if(matchAnyAccess()) return accesses().stream().anyMatch(access -> access.hasAccess(sender, command.getName()));
+        else return accesses().stream().allMatch(access -> access.hasAccess(sender, command.getName()));
     }
 
-    public List<CommandAccess> getAccesses() {
-        return accesses;
-    }
 }
