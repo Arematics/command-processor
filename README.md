@@ -1,3 +1,5 @@
+#Support and updates for this library ended.
+
 # command-processor
 Used to work better with commands
 
