@@ -1,6 +1,9 @@
 package com.arematics.minecraft.core;
 
-import com.arematics.minecraft.core.command.parser.Parser;
+import com.arematics.minecraft.core.command.processor.parser.Parser;
+import com.arematics.minecraft.core.messaging.injector.BasicInjector;
+import com.arematics.minecraft.core.messaging.injector.Injector;
+import com.arematics.minecraft.core.messaging.injector.StringInjector;
 import org.bukkit.Bukkit;
 
 public class Engine {
@@ -35,6 +38,7 @@ public class Engine {
 
     private final Bootstrap plugin;
     private final Parser parser;
+    private final Class<? extends StringInjector> defaultInjectorType = BasicInjector.class;
 
     /**
      * Hooking Config File
@@ -52,5 +56,9 @@ public class Engine {
 
     public Parser getParser() {
         return parser;
+    }
+
+    public Class<? extends Injector<?>> getDefaultInjectorType() {
+        return defaultInjectorType;
     }
 }
